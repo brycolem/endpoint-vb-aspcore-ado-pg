@@ -27,8 +27,8 @@ end
 
 -- Run the container
 local run_command = string.format(
-    "podman run -d -p 8001:8001 --network bench-network " ..
-    "-e DATABASE=%q -e DB_USER=%q -e DB_PWD=%q " ..
+    "podman run -d -p 8001:8001 --network=host " ..
+    "--ulimit nofile=65536:65536 -e DATABASE=%q -e DB_USER=%q -e DB_PWD=%q " ..
     "--replace --name vb-aspnetcore-ado vb-aspnetcore-ado:latest",
     DATABASE, DB_USER, DB_PWD
 )

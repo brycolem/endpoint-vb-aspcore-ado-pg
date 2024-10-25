@@ -18,23 +18,25 @@ Namespace VBAspCoreAdoPg.Controllers
 
         ' GET: /application
         <HttpGet>
-        Public Function GetApplications() As IActionResult
+        Public Async Function GetApplications() As Task(Of IActionResult)
             Dim connectionString As String = _configuration.GetConnectionString("DefaultConnection")
             Dim applications As New List(Of VBAspCoreAdoPg.Models.Application)()
 
             Using connection As New NpgsqlConnection(connectionString)
-                connection.Open()
+                Await connection.OpenAsync()
+
                 Dim query As String = "
                     SELECT a.id, a.employer, a.title, a.link, a.company_id,
                         COALESCE(json_agg(json_build_object('id', n.id, 'noteText', n.note_text, 'applicationId', n.application_id)) 
                         FILTER (WHERE n.id IS NOT NULL), '[]') as notes
                     FROM applications a
                     LEFT JOIN notes n ON a.id = n.application_id
-                    GROUP BY a.id, a.employer, a.title, a.link, a.company_id"
+                    GROUP BY a.id, a.employer, a.title, a.link, a.company_id
+                    LIMIT 100 OFFSET 0"
 
                 Using command As New NpgsqlCommand(query, connection)
-                    Using reader As NpgsqlDataReader = command.ExecuteReader()
-                        While reader.Read()
+                    Using reader As NpgsqlDataReader = Await command.ExecuteReaderAsync()
+                        While Await reader.ReadAsync()
                             Dim app As New VBAspCoreAdoPg.Models.Application With {
                                 .Id = reader.GetInt32(0),
                                 .Employer = reader.GetString(1),
@@ -53,7 +55,6 @@ Namespace VBAspCoreAdoPg.Controllers
                                     End If
                                 Catch jsonEx As JsonException
                                     Console.WriteLine($"Error deserializing notes JSON: {jsonEx.Message}")
-                                    Console.WriteLine($"Invalid JSON content: {notesJson}")
                                 End Try
                             End If
 
@@ -68,18 +69,18 @@ Namespace VBAspCoreAdoPg.Controllers
 
         ' POST: /application
         <HttpPost>
-        Public Function AddApplication(<FromBody> application As VBAspCoreAdoPg.Models.Application) As IActionResult
+        Public Async Function AddApplication(<FromBody> application As VBAspCoreAdoPg.Models.Application) As Task(Of IActionResult)
             Dim connectionString As String = _configuration.GetConnectionString("DefaultConnection")
 
             Using connection As New NpgsqlConnection(connectionString)
-                connection.Open()
+                Await connection.OpenAsync()
                 Using command As New NpgsqlCommand("INSERT INTO applications (employer, title, link, company_id) VALUES (@employer, @title, @link, @companyId) RETURNING id", connection)
                     command.Parameters.AddWithValue("employer", application.Employer)
                     command.Parameters.AddWithValue("title", application.Title)
                     command.Parameters.AddWithValue("link", application.Link)
                     command.Parameters.AddWithValue("companyId", application.CompanyId)
 
-                    Dim newApplicationId As Integer = Convert.ToInt32(command.ExecuteScalar())
+                    Dim newApplicationId As Integer = Convert.ToInt32(Await command.ExecuteScalarAsync())
                     application.Id = newApplicationId
                 End Using
             End Using

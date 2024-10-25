@@ -10,6 +10,7 @@ RUN dotnet publish VBAspCoreAdoPg.vbproj -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:7.0-alpine AS runtime
 WORKDIR /app
 
+RUN export ASPNETCORE_ENVIRONMENT=Production
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 RUN chown -R appuser:appgroup /app
 USER appuser
